@@ -8,6 +8,14 @@ description: "Knowledge base from \"《Java开发手册》v1.5.0 华山版\" by 
 # 《Java开发手册》v1.5.0 华山版
 **作者**：阿里巴巴与 Java 社区开发者 | **页数**：约 44 | **章节**：10 | **生成日期**：2026-10-21 | **原版发布**：2019.06.19
 
+## 安装
+
+```bash
+npx skills add https://github.com/xiaoleige0611/alibaba-java-manual --skill alibaba-java-manual
+```
+
+安装后重启 agent 会话。
+
 ## 如何使用
 - **不带参数**：加载下面的核心规约，用于写代码或做 Code Review。
 - **带主题**：例如 `线程池`、`BigDecimal`、`索引`、`日志`，我会定位到对应章节，读完再回答。
