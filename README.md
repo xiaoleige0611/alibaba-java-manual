@@ -24,4 +24,9 @@ npx skills add https://github.com/xiaoleige0611/alibaba-java-manual --skill alib
 
 ## 说明
 
-内容是对手册规约的提炼与综合，不是原书全文。
+内容是对手册规约的提炼与综合，不是原书全文。本 skill 基于 v1.5.0 华山版（2019.06.19）生成，后续的嵩山版、黄山版有新增和修改，需要以最新版为准时请对照[官方仓库](https://github.com/alibaba/p3c)。
+
+## 来源与许可
+
+- 原著：《Java开发手册》，阿里巴巴与 Java 社区开发者，依 [Apache License 2.0](https://github.com/alibaba/p3c) 发布。
+- 本仓库是上述手册的衍生整理，同样以 [Apache License 2.0](LICENSE) 发布。使用时请保留本声明。
