@@ -15,6 +15,8 @@
 - **常量复用五层**：跨应用（二方库 client.jar 的 constant 目录）→ 应用内（一方库子模块的 constant 目录）→ 子工程内 → 包内 → 类内（`private static final`）。
 
 ## 规约速查
+> 泰山版本章（命名风格 18 条、常量定义 5 条）与华山版条数一致，未见新增条款。
+
 | # | 级别 | 规则 |
 |---|---|---|
 | 1.1 | 强制 | 命名不以 `_` 或 `$` 开头或结尾 |
@@ -24,7 +26,7 @@
 | 1.5 | 强制 | 常量全大写加下划线，语义完整，不嫌长（`MAX_STOCK_COUNT`，不写 `MAX_COUNT`） |
 | 1.6 | 强制 | 抽象类以 `Abstract`/`Base` 开头；异常类以 `Exception` 结尾；测试类 = 被测类名 + `Test` |
 | 1.7 | 强制 | 数组写 `int[] arr`，不写 `String args[]` |
-| 1.8 | 强制 | **POJO 布尔属性不加 `is` 前缀**（否则 RPC 框架会误判属性名，引发序列化错误） |
+| 1.8 | 强制 | **POJO 布尔属性不加 `is` 前缀**（否则 RPC 框架会误判属性名，引发序列化错误）。原理见 ch13 第 10 问 |
 | 1.9 | 强制 | 包名全小写，每段只有一个英文单词，用单数；类名可以用复数（`MessageUtils`） |
 | 1.10 | 强制 | 子类与父类成员变量不同名，不同代码块的局部变量不同名；非 setter 参数不与成员变量同名 |
 | 1.11 | 强制 | 杜绝不规范缩写（`AbsClass`、`condi`） |
@@ -32,6 +34,7 @@
 | 1.15 | 推荐 | 接口方法和属性不加任何修饰符（连 `public` 也不加），配 Javadoc；接口里尽量不定义变量 |
 | 1.16 | 强制/推荐 | `XxxServiceImpl implements XxxService`；能力接口用 -able |
 | 1.17 | 参考 | 枚举类加 `Enum` 后缀，成员全大写（`ProcessStatusEnum.UNKNOWN_REASON`） |
+| 1.18 | 参考 | 各层命名规约：Service/DAO 方法前缀（见上）、领域模型命名（见上） |
 | 2.1 | 强制 | **禁止魔法值**直接出现在代码中 |
 | 2.2 | 强制 | long 字面量用大写 `L`（`2l` 看起来像 21） |
 | 2.3 | 推荐 | 常量按功能分类（`CacheConsts`、`ConfigConsts`），不要一个大而全的常量类 |
@@ -111,3 +114,4 @@ public enum SeasonEnum {
 - **ch02**：POJO 规约（包装类型、toString、不能同时存在 isXxx 和 getXxx）。
 - **ch08**：建表规约里的 `is_xxx` 字段与 resultMap 映射。
 - **ch09**：分层领域模型 DO/DTO/BO/AO/VO/Query 的定义。
+- **ch13 第 10 问**：`isSuccess` 命名在 fastjson、jackson、Gson 之间序列化结果不一致的根因。

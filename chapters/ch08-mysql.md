@@ -4,7 +4,7 @@
 表结构是最难修改的代码：字段名无法预发布，数据迁移代价很高，所以建表要**一次做对**（命名、类型、必备字段）；索引要基于**最左前缀和区分度**来设计；SQL 要避开 NULL、count、外键、存储过程的陷阱；ORM 层要**显式映射、不用 `*`、不用 `${}`**。
 
 ## Frameworks Introduced
-- **表必备三字段**：`id`（bigint unsigned，主键，单表自增，步长为 1）、`create_time`、`update_time`（都是 datetime 类型）。
+- **表必备三字段**（泰山版原文）：`id`（bigint unsigned，主键，单表自增，步长为 1）、`gmt_create`、`gmt_modified`（都是 datetime 类型；前者现在时表示主动创建，后者过去分词表示被动更新）。
 - **索引命名**：`pk_字段名`（主键）、`uk_字段名`（唯一索引）、`idx_字段名`（普通索引）。
 - **is_xxx 布尔字段**：表示是与否的字段用 `is_xxx` 命名，类型是 `unsigned tinyint`（1 表示是，0 表示否）；POJO 属性不加 is，在 resultMap 中做映射。任何非负数的字段都必须是 unsigned。
 - **冗余字段三条件**：不是频繁修改的字段；不是超长 varchar，更不能是 text；不是唯一索引的字段。
@@ -15,6 +15,8 @@
 - **索引的三种极端误解**：宁滥勿缺（一个查询建一个索引）；宁缺勿滥（认为索引拖慢写入）；抵制唯一索引（坚持在应用层先查后插）。
 
 ## 规约速查
+> 编号沿用华山版；标 `泰 x.y` 的行是泰山版（v1.6.0）新增条款，如 `泰 SQL 9` 为泰山版（三）SQL 语句第 9 条（泰山版插入新条款后，后续编号整体后移）。
+
 | # | 级别 | 规则 |
 |---|---|---|
 | 建 1 | 强制 | 是与否用 `is_xxx unsigned tinyint`；非负数一律 unsigned |
@@ -25,7 +27,7 @@
 | 建 6 | 强制 | 小数用 **decimal**，禁用 float/double；超出 decimal 范围就拆成整数和小数分开存 |
 | 建 7 | 强制 | 长度几乎相等的字符串用 char |
 | 建 8 | 强制 | varchar 不超过 **5000**；超过就用 text 并拆到独立的表 |
-| 建 9 | 强制 | 表必备三字段 |
+| 建 9 | 强制 | 表必备三字段：id、gmt_create、gmt_modified |
 | 建 10–12 | 推荐 | 表名用“业务名称_表的作用”（`alipay_task`）；库名与应用名一致；修改字段含义时更新注释 |
 | 建 13–14 | 推荐 | 适当冗余；500 万行或 2GB 再分库分表 |
 | 索 1 | 强制 | 业务上唯一的字段（包括组合字段）必须建唯一索引（墨菲定律：没有唯一索引就一定会有脏数据） |
@@ -33,14 +35,16 @@
 | 索 3 | 强制 | varchar 上建索引必须指定长度，按区分度确定 |
 | 索 4 | 强制 | 页面搜索禁止左模糊和全模糊，需要时走搜索引擎 |
 | 索 5–10 | 推荐 | order by 利用索引；覆盖索引（extra 显示 using index）；用延迟关联优化深分页；type 至少 range；区分度高的放左边；防止隐式类型转换导致索引失效 |
-| SQL 1 | 强制 | 用 `count(*)`，不用 count(列名) 或 count(常量) 代替 |
+| SQL 1 | 强制 | 用 `count(*)`，不用 count(列名) 或 count(常量) 代替（count(*) 是 SQL92 标准写法，会统计 NULL 行）。原理见 ch13 第 13 问 |
 | SQL 2 | 强制 | `count(distinct col1, col2)` 中只要有一列全为 NULL，即使另一列有不同的值也返回 0 |
 | SQL 3 | 强制 | 某列全为 NULL 时 sum 返回 NULL → 写成 `IFNULL(SUM(col), 0)` |
-| SQL 4 | 强制 | 用 `ISNULL()` 判断 NULL；`NULL=NULL`、`NULL<>NULL` 的结果都是 NULL |
+| SQL 4 | 强制 | 用 `ISNULL()` 判断 NULL；`NULL=NULL`、`NULL<>NULL`、`NULL<>1` 的结果都是 NULL。泰山版完善示例：`is null` 前换行影响可读性，`ISNULL(col)` 是一个整体、更简洁，执行效率也略高 |
 | SQL 5 | 强制 | 分页查询时 count 为 0 就直接返回 |
 | SQL 6 | 强制 | **不使用外键和级联**，外键概念在应用层解决 |
 | SQL 7 | 强制 | **禁止使用存储过程** |
 | SQL 8 | 强制 | 数据订正（删除、修改）前先 select 确认 |
+| 泰 SQL 9 | 强制 | **多表查询或变更时，列名前必须加表别名（或表名）限定**；否则日后某表新增同名字段会报 1052 `Column 'x' in field list is ambiguous` |
+| 泰 SQL 10 | 推荐 | 表别名前加 `as`，按 t1、t2、t3… 顺序命名 |
 | SQL 9 | 推荐 | 尽量避免 in；实在避免不了，in 后面的元素控制在 **1000** 个以内 |
 | SQL 10–11 | 参考 | 用 utf-8 编码，需要存表情时用 utf8mb4；不建议在开发代码中使用 TRUNCATE（无事务、不触发 trigger） |
 | ORM 1 | 强制 | 不用 `*` 作为查询字段列表 |
@@ -82,14 +86,17 @@ CREATE TABLE trade_config (
     config_name  VARCHAR(64)      NOT NULL COMMENT '配置名',
     amount       DECIMAL(18, 2)   NOT NULL COMMENT '金额',
     is_deleted   TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '1 删除 0 未删除',
-    create_time  DATETIME         NOT NULL,
-    update_time  DATETIME         NOT NULL,
+    gmt_create   DATETIME         NOT NULL,
+    gmt_modified DATETIME         NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uk_config_name (config_name)
 );
 
 -- 延迟关联优化深分页（原文正例）
 SELECT a.* FROM 表1 a, (SELECT id FROM 表1 WHERE 条件 LIMIT 100000, 20) b WHERE a.id = b.id;
+
+-- 泰山新增：多表查询加别名限定
+SELECT t1.name FROM table_first AS t1, table_second AS t2 WHERE t1.id = t2.id;
 
 -- sum 的 NPE 防护
 SELECT IFNULL(SUM(column), 0) FROM table;
@@ -108,18 +115,18 @@ SELECT CHARACTER_LENGTH("轻松工作");  -- 4
 | 太阳 | 约 50 亿年 | bigint unsigned | 8 | 0 到约 10 的 19 次方 |
 
 ## Worked Example
-优化查询 `select * from order where status = ? and create_time > ? order by create_time limit 100000, 20`：
+优化查询 `select * from order where status = ? and gmt_create > ? order by gmt_create limit 100000, 20`：
 1. 去掉 `*`，明确列出需要的字段（ORM 1）。
-2. 建索引：status 是等号条件，create_time 是范围条件 → 等号条件放前面 → `idx_status_create_time`；order by 的字段刚好是索引的最后一列，可以利用有序性，避免 file_sort（索 5、索 9）。
+2. 建索引：status 是等号条件，gmt_create 是范围条件 → 等号条件放前面 → `idx_status_gmt_create`；order by 的字段刚好是索引的最后一列，可以利用有序性，避免 file_sort（索 5、索 9）。
 3. 深分页 → 改成延迟关联：先 `select id ... limit 100000, 20`，再 join 回原表（索 7）。
 4. 用 explain 验证 type 至少是 range（索 8）。
 5. 分页前先执行 count，结果为 0 就直接返回（SQL 5）；参数用 `#{}` 传入（ORM 4）。
 
 ## Key Takeaways
-1. 表必备 id、create_time、update_time；小数用 decimal；非负数用 unsigned；是否类字段用 `is_xxx tinyint`。
+1. 表必备 id、gmt_create、gmt_modified；小数用 decimal；非负数用 unsigned；是否类字段用 `is_xxx tinyint`。
 2. 业务上唯一的字段必须建唯一索引；join 不超过 3 个表；禁止左模糊；varchar 索引要指定长度。
 3. 组合索引：等号列在前，区分度高的在前；用 explain 确认 type 至少为 range。
-4. 用 count(*)；sum 要套 IFNULL；判断 NULL 用 ISNULL()。
+4. 用 count(*)；sum 要套 IFNULL；判断 NULL 用 ISNULL()；多表 SQL 的列一律加 t1/t2 别名限定（泰山新增）。
 5. 不用外键、级联和存储过程；订正数据前先 select。
 6. ORM：不用 `*`、不用 `${}`、显式 resultMap、只更新改动过的字段。
 
@@ -127,3 +134,4 @@ SELECT CHARACTER_LENGTH("轻松工作");  -- 4
 - **ch01 / ch02**：POJO 布尔属性命名；DO 属性类型与字段类型匹配；BigDecimal 与 decimal 对应。
 - **ch07**：SQL 注入防护。
 - **ch10**：存储方案和数据结构的设计必须经过评审。
+- **ch13 第 13 问**：count(*) / count(1) / count(列) 在 InnoDB、MyISAM 下的差异。

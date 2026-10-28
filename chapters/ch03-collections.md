@@ -18,22 +18,27 @@ Java 集合 API 中很多返回值是**视图**或**不可变对象**（subList�
 - **有序性与稳定性**：sort（遍历结果按比较规则排列）与 order（每次遍历的次序固定）是两回事。ArrayList 是 order/unsort，HashMap 是 unorder/unsort，TreeSet 是 order/sort。
 
 ## 规约速查
+> 编号沿用华山版；标 `泰 x.y` 的行是泰山版（v1.6.0）新增条款，数字为泰山版（六）集合处理中的编号（泰山版插入新条款后，后续编号整体后移）。
+
 | # | 级别 | 规则 |
 |---|---|---|
 | 1 | 强制 | hashCode/equals 三条铁律 |
-| 2 | 强制 | `subList` 的结果不能强转成 ArrayList（它是 SubList 视图，会抛 ClassCastException） |
+| 泰 2 | 强制 | **判断集合是否为空用 `isEmpty()`，不用 `size() == 0`**（O(1)，可读性更好） |
+| 泰 3 | 强制 | `Collectors.toMap()` 必须用带 `mergeFunction`（BinaryOperator）的重载，否则 key 重复时抛 IllegalStateException |
+| 泰 4 | 强制 | `Collectors.toMap()` 的 value 为 null 时抛 NPE（`HashMap.merge` 内部判空） |
+| 2 | 强制 | `subList` 的结果不能强转成 ArrayList（它是 SubList 视图，会抛 ClassCastException）。原理见 ch13 第 5 问 |
 | 3 | 强制 | `keySet()/values()/entrySet()` 返回的集合不能添加元素 |
 | 4 | 强制 | `Collections.emptyList()/singletonList()` 不可变，不能增删 |
-| 5 | 强制 | 使用 subList 期间修改原集合，子列表的操作会抛 ConcurrentModificationException |
+| 5 | 强制 | 使用 subList 期间修改原集合，子列表的操作会抛 ConcurrentModificationException。原理见 ch13 第 5 问 |
 | 6 | 强制 | 集合转数组用 `toArray(new T[0])` |
 | 7 | 强制 | 调用 `addAll()` 前先判断参数是否为 null |
 | 8 | 强制 | `Arrays.asList()` 的结果不能 add/remove/clear；修改原数组会同步影响 List |
 | 9 | 强制 | `<? extends T>` 不能 add，`<? super T>` 不能 get |
 | 10 | 强制 | 把无泛型集合赋值给泛型集合后，使用元素前先做 instanceof 判断 |
-| 11 | 强制 | **不要在 foreach 循环里 remove/add**；删除用 Iterator，并发场景要给 Iterator 加锁 |
+| 11 | 强制 | **不要在 foreach 循环里 remove/add**；删除用 Iterator，并发场景要给 Iterator 加锁。原理见 ch13 第 7 问 |
 | 12 | 强制 | Comparator 满足三条件（要处理相等的情况） |
 | 13 | 推荐 | 使用 diamond 语法 `new HashMap<>(16)` |
-| 14 | 推荐 | 集合初始化时指定容量 |
+| 14 | 推荐 | 集合初始化时指定容量。原理见 ch13 第 2、3 问 |
 | 15 | 推荐 | 遍历 Map 用 entrySet，JDK8 用 `Map.forEach` |
 | 16 | 推荐 | 注意各种 Map 的 K/V 能否为 null（见下表） |
 | 17 | 参考 | 利用集合的有序性和稳定性 |
@@ -84,6 +89,11 @@ List list = Arrays.asList(str);
 list.add("yangguanbao");   // 运行时抛 UnsupportedOperationException
 str[0] = "changed";        // list.get(0) 也随之变化，反之亦然
 
+// 泰山新增：toMap 的两个坑
+Map<String, Double> map = pairs.stream().collect(
+    Collectors.toMap(Pair::getKey, Pair::getValue, (v1, v2) -> v2));  // 重复 key 保留后者
+// 不传 mergeFunction 且 key 重复 → IllegalStateException；value 为 null → NPE
+
 // 反例：无泛型集合赋值给泛型集合
 List<String> generics = null;
 List notGenerics = new ArrayList(10);
@@ -117,8 +127,10 @@ String string = generics.get(0);   // 抛 ClassCastException
 4. 遍历时删除元素一律用 Iterator。
 5. 容量按 `n / 0.75 + 1` 计算；遍历 Map 用 entrySet 或 forEach。
 6. ConcurrentHashMap 和 Hashtable 的 key 和 value 都不能为 null。
+7. （泰山）判空用 `isEmpty()`；`Collectors.toMap` 一律传 mergeFunction，并先过滤 null value。
 
 ## Connects To
 - **ch04**：HashMap 在高并发 resize 时可能出现死链；并发修改集合的问题。
 - **ch05**：“任何数据结构都应指定大小”。
 - **ch08**：iBATIS 的 queryForList 内部用 subList 做分页，是性能陷阱。
+- **ch13**：第 2、3 问（HashMap 容量与扩容）、第 5 问（subList 视图）、第 7 问（modCount 与 fail-fast）。

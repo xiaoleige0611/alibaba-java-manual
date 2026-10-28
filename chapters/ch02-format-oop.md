@@ -13,6 +13,8 @@
 - **方法排序**：public/protected 方法 > private 方法 > getter/setter；重载的方法和多个构造方法放在一起（此条优先）。
 
 ## 规约速查
+> 编号沿用华山版；标 `泰 x.y` 的行是泰山版（v1.6.0）新增条款，x.y 为泰山版编号（泰山版插入新条款后，后续编号整体后移）。
+
 | # | 级别 | 规则 |
 |---|---|---|
 | 3.5 | 强制 | 4 个空格缩进，禁用 tab（IDEA 不勾选 Use tab character；Eclipse 勾选 insert spaces for tabs） |
@@ -28,18 +30,19 @@
 | 4.5 | 强制 | 不使用过时的类或方法 |
 | 4.6 | 强制 | 用常量或确定有值的对象调用 equals：`"test".equals(obj)`，推荐 `Objects.equals` |
 | 4.7 | 强制 | **整型包装类之间的值比较一律用 equals** |
+| 泰 4.8 | 强制 | **任何货币金额都以最小货币单位、整型类型存储**（如以“分”为单位存 long） |
 | 4.8 | 强制 | 浮点数等值判断：基本类型不用 `==`，包装类型不用 `equals` |
 | 4.9 | 强制 | DO 属性类型与数据库字段类型匹配（bigint ↔ Long） |
 | 4.10 | 强制 | **禁止 `new BigDecimal(double)`** |
 | 4.11 | 强制/推荐 | 包装类型与基本类型的选用标准（见上） |
 | 4.12 | 强制 | POJO 不设属性默认值 |
-| 4.13 | 强制 | 序列化类新增属性时不改 serialVersionUID；完全不兼容的升级才修改 |
+| 4.13 | 强制 | 序列化类新增属性时不改 serialVersionUID；完全不兼容的升级才修改。原理见 ch13 第 11 问 |
 | 4.14 | 强制 | 构造方法里不写业务逻辑，初始化逻辑放到 init 方法 |
 | 4.15 | 强制 | POJO 必须写 toString；继承另一个 POJO 时调用 `super.toString` |
 | 4.16 | 强制 | 同一属性不能同时有 `isXxx()` 和 `getXxx()` |
 | 4.17 | 推荐 | 按索引访问 split 结果前，先检查最后一个分隔符后面有没有内容 |
 | 4.20 | 推荐 | getter/setter 里不写业务逻辑 |
-| 4.21 | 推荐 | 循环体内拼接字符串用 `StringBuilder.append` |
+| 4.21 | 推荐 | 循环体内拼接字符串用 `StringBuilder.append`。原理见 ch13 第 6 问 |
 | 4.22 | 推荐 | 以下情况用 final：不允许继承的类、不允许修改引用的域对象、不允许覆写的方法、不允许重新赋值的局部变量 |
 | 4.23 | 推荐 | 慎用 clone（默认是浅拷贝） |
 
@@ -127,3 +130,4 @@ public class TradeDTO {
 - **ch01**：布尔属性不加 is 前缀。
 - **ch06**：自动拆箱是 NPE 的主要来源之一。
 - **ch08**：建表时小数一律用 decimal，与 BigDecimal 呼应。
+- **ch13**：第 6 问（循环里 `+` 拼接的字节码真相）、第 11 问（serialVersionUID 与 InvalidClassException）。

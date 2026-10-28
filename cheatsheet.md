@@ -31,6 +31,16 @@
 | 需要分页的深度查询 | 用延迟关联 | 否则 offset 越大越慢 |
 | SQL 传参 | 用 `#{}` | `${}` 有 SQL 注入风险 |
 | 查询参数超过 2 个 | 封装成 Query 对象 | 禁止用 Map 传参 |
+| （泰山）存货币金额 | 以最小货币单位、整型存储（如分） | 避免小数精度问题 |
+| （泰山）判断集合为空 | `isEmpty()` | O(1)、可读性好 |
+| （泰山）stream 转 Map | `toMap` 传 mergeFunction，并过滤 null value | 重复 key 抛 IllegalStateException，null value 抛 NPE |
+| （泰山）三目运算符含包装类型 | 两个分支与接收变量类型一致 | 类型对齐会自动拆箱，null 时 NPE |
+| （泰山）计算一年后、一年天数 | `plusYears` / `lengthOfYear()` | 闰年不是 365 天 |
+| （泰山）多表 SQL | 每列加 `t1.` 别名，别名用 `as t1` | 新增同名字段后报 1052 |
+| （泰山）打日志输出对象 | 打业务字段或 toString | JSON 工具调用 getter 可能抛异常 |
+| （泰山）返回错误码 | 5 位：A/B/C + 四位编号，成功 `00000` | 一眼定责，只追加不修改 |
+| （泰山）属性拷贝 | Spring BeanUtils / Cglib BeanCopier（浅拷贝） | Apache BeanUtils 性能差 |
+| （泰山）外部重定向 | 目标地址走白名单 | 防任意跳转 |
 
 ## 阈值与默认值
 | 项 | 值 |
@@ -40,9 +50,9 @@
 | 缩进 | 4 个空格，不用 tab |
 | if-else 嵌套 | ≤ 3 层 |
 | 乐观锁 | 冲突率 < 20%，重试 ≥ 3 次 |
-| HashMap 负载因子 | 0.75，默认容量 16 |
+| HashMap 负载因子 | 0.75，默认容量 16；初始容量 = n / 0.75 + 1（ch13 第 3 问） |
 | 单测覆盖率 | 语句 70%；核心模块的语句和分支都是 100% |
-| 日志保留 | ≥ 15 天；敏感操作日志 ≥ 6 个月 |
+| 日志保留 | ≥ 15 天（泰山版原文未见“6 个月”的要求） |
 | varchar 长度 | ≤ 5000，超过就用 text 并拆表 |
 | 分库分表 | 500 万行或 2GB |
 | join 表数 | ≤ 3 |
@@ -51,6 +61,8 @@
 | explain type | 至少 range，要求 ref，最好 consts |
 | tcp_fin_timeout | 30 秒（默认 240 秒） |
 | 二方库起始版本 | 1.0.0 |
+| 错误码 | 5 位字符串；大类步长 100；全部正常时返回 00000 |
+| 表必备字段（泰山版） | id、gmt_create、gmt_modified |
 | UML 必画的阈值 | 用例 > 5 个 → 用例图；状态 > 3 个 → 状态图；调用链对象 > 3 个 → 时序图；模型类 > 5 个 → 类图；协作对象 > 2 个 → 活动图 |
 
 ## 异常与日志按层处理
@@ -72,3 +84,11 @@
 - 看到 `select *`、`${}`、`like '%x'` → 有 SQL 性能或安全问题
 - 看到 `foreach` 循环里调用 `list.remove` → 会抛 ConcurrentModificationException
 - 看到 `Collections.emptyList()` 被返回给调用方 → 调用方如果 add 会抛异常
+- 看到 `cond ? a * b : nullableInteger` → 拆箱 NPE（ch13 第 1 问）
+- 看到 `Collectors.toMap(k, v)` 只有两个参数 → 重复 key 会抛异常
+- 看到 `365`、`java.sql.Timestamp`、`calendar.set(Calendar.MONTH, 2)` → 闰年或月份错误
+- 看到 `e.printStackTrace()`、`System.out.println` 打日志 → 生产环境禁止
+- 看到 `JSON.toJSONString(obj)` 写在日志里 → 可能因 getter 抛异常影响业务
+- 看到多表 SQL 里有不带别名的列 → 将来可能报 1052
+- 看到 `new HashMap<>(元素个数)` → 仍会扩容一次（ch13 第 3 问）
+- 看到实现 Serializable 却没写 serialVersionUID → 改类后旧数据无法反序列化（ch13 第 11 问）

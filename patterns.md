@@ -17,7 +17,7 @@
 
 ## 自定义线程池（替代 Executors）
 **When to use**：任何需要线程的地方（不允许显式创建线程）。
-**How**：用 `new ThreadPoolExecutor(core, max, keepAlive, unit, 有界队列, 带名字的 ThreadFactory, 拒绝策略)`。
+**How**：用 `new ThreadPoolExecutor(core, max, keepAlive, unit, 有界队列, 带名字的 ThreadFactory, 拒绝策略)`；队列用 `new LinkedBlockingQueue<>(1024)` 这类显式容量，线程名可用 Guava `ThreadFactoryBuilder`（原理见 ch13 第 4 问）。
 **Trade-offs**：需要预估容量；但能避免无界队列或无限线程导致的 OOM，jstack 排查时也能看到线程名。(Ch 4)
 
 ## ThreadLocal 成对回收
@@ -74,3 +74,33 @@
 **When to use**：同一业务域内存在多种实现，且需求会变化（例如多种支付渠道）。
 **How**：定义接口，每种实现一个类，调用方只依赖接口；新增实现时不修改已有代码。
 **Trade-offs**：会多出一些类；但只有在真正存在变化点时才值得这样做。(Ch 10)
+
+## HashMap 容量预估（泰山 13 问）
+**When to use**：已知要放入的元素个数时。
+**How**：`initialCapacity = (int) (expectedSize / 0.75F + 1.0F)`，或用 Guava `Maps.newHashMapWithExpectedSize(n)`；不要直接传元素个数。
+**Trade-offs**：用内存换性能；元素数很大时要评估内存占用。(Ch 3, Ch 13)
+
+## Collectors.toMap 安全写法（泰山新增）
+**When to use**：用 stream 把 List 转成 Map 时。
+**How**：总是传 mergeFunction：`toMap(K::key, V::value, (v1, v2) -> v2)`；value 可能为 null 时先 `filter(Objects::nonNull)`，或改用普通循环 put。
+**Trade-offs**：需要明确“重复 key 保留哪个值”的业务规则。(Ch 3)
+
+## 日期计算交给 API（泰山新增）
+**When to use**：计算一年的天数、到期日、月份参数时。
+**How**：`LocalDate#lengthOfYear()`、`plusYears(1)`；月份用 `Calendar.JANUARY` 等枚举；格式化用 `DateTimeFormatter`；业务代码不用 `java.sql.*` 日期类型。
+**Trade-offs**：老代码迁移到 java.time 需要成本；低版本 JDK 用 ThreadLocal 包装 SimpleDateFormat。(Ch 11, Ch 13)
+
+## 五位错误码（泰山新增）
+**When to use**：对外接口或 Result 中需要错误码时。
+**How**：`来源(A 用户 / B 本系统 / C 第三方) + 四位编号`，字符串类型；先在附表中复用，确实没有再申请；成功时用 `00000`；第三方错误转义为 B 并保留原码；用户只看 user_tip。
+**Trade-offs**：需要一个统一的申请平台和共享码表；换来的是一眼定责和跨团队一致性。(Ch 12)
+
+## 多表 SQL 别名限定（泰山新增）
+**When to use**：任何涉及多个表的查询、更新、删除。
+**How**：`SELECT t1.name FROM a AS t1, b AS t2 WHERE t1.id = t2.id`，每一列都带别名。
+**Trade-offs**：SQL 稍长；但日后任意一张表新增同名字段时，不会报 1052 ambiguous 错误。(Ch 8)
+
+## 三目运算符防拆箱（泰山新增）
+**When to use**：三目运算符的操作数中有包装类型时。
+**How**：让两个分支和接收变量的类型一致，最好都用包装类型；不确定时改写成 if-else。
+**Trade-offs**：写法略长；但能避免类型对齐时的隐式拆箱 NPE。(Ch 5, Ch 13)

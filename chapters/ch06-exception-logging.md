@@ -19,6 +19,8 @@
 - **日志级别的用法**：error 只记录系统逻辑出错、异常或重要的错误信息；warn 可以记录用户输入参数错误（避免频繁报警）；生产环境禁止输出 debug；info 有选择地输出。
 
 ## 规约速查
+> 编号沿用华山版；标 `泰 x.y` 的行是泰山版（v1.6.0）新增条款，x.y 为泰山版编号；泰山版异常日志新增（一）错误码（见 ch12），异常处理变为（二）、日志变为（三）（泰山版插入新条款后，后续编号整体后移）。
+
 | # | 级别 | 规则 |
 |---|---|---|
 | 1.1 | 强制 | 能预检查的 RuntimeException 不要 catch |
@@ -31,20 +33,22 @@
 | 1.8 | 强制 | catch 的异常与抛出的异常要完全匹配，或者是其父类 |
 | 1.9 | 强制 | 调用 RPC、二方包、动态生成类的方法时，用 **Throwable** 捕获（防 NoSuchMethodError） |
 | 1.10 | 推荐 | 方法可以返回 null，但必须注释说明什么情况下返回 null |
-| 1.11 | 推荐 | 注意 NPE 六大场景 |
+| 1.11 | 推荐 | 注意 NPE 六大场景（泰山版另在控制语句中新增三目运算符拆箱 NPE，见 ch05、ch13 第 1 问） |
 | 1.12 | 推荐 | 区分 checked 和 unchecked 异常；不直接抛 `new RuntimeException()`，更不能抛 Exception 或 Throwable；使用有业务含义的自定义异常（DAOException、ServiceException） |
 | 1.13 | 参考 | 错误码 / 异常 / Result 三分法 |
 | 1.14 | 参考 | DRY 原则：重复的校验逻辑抽成 `private boolean checkParam(DTO dto)` |
-| 2.1 | 强制 | 使用 **SLF4J** API，不要直接使用 Log4j、Logback 的 API |
-| 2.2 | 强制 | 日志至少保留 **15 天**；网络运行状态、安全、监测、管理后台操作、用户敏感操作的日志至少保留 **6 个月** |
+| 2.1 | 强制 | 使用 **SLF4J**（或 JCL）门面 API，不要直接使用 Log4j、Logback 的 API。原理见 ch13 第 8 问 |
+| 2.2 | 强制 | 日志至少保留 **15 天**（有些异常按“周”发生）；当天日志 `应用名.log`，历史日志 `{logname}.log.{yyyy-MM-dd}`。注：泰山版原文未见“敏感操作日志 ≥ 6 个月”的表述 |
 | 2.3 | 强制 | 扩展日志命名：`appName_logType_logName.log`（logType 如 stats、monitor、access） |
 | 2.4 | 强制 | 日志字符串拼接用 `{}` 占位符 |
 | 2.5 | 强制 | trace/debug/info 级别的日志要先判断级别开关 |
 | 2.6 | 强制 | 避免重复打印：在 log4j.xml 中设置 `additivity=false` |
+| 泰 3.7 | 强制 | **生产环境禁止用 System.out / System.err 输出日志，禁止 `e.printStackTrace()`**（标准输出文件只在容器重启时滚动，易超过文件大小限制） |
 | 2.7 | 强制 | 异常日志要包含现场信息和堆栈：`logger.error(参数 + "_" + e.getMessage(), e)` |
+| 泰 3.9 | 强制 | **打日志时禁止直接用 JSON 工具把对象转成 String**（被重写的 getter 可能抛异常，打日志反而中断业务）；只打业务属性或调用 toString() |
 | 2.8 | 推荐 | 生产环境禁止 debug；用 warn 记录上线初期的观察信息时注意日志量，并及时删除 |
 | 2.9 | 推荐 | 用户输入参数错误记 warn，不要记 error |
-| 2.10 | 推荐 / 强制 | 错误信息尽量用英文描述；国际化团队或海外部署的服务器【强制】全英文 |
+| 2.10 | 推荐 | 错误信息尽量用英文描述，英文说不清时用中文；国际化团队或海外部署的服务器用全英文（泰山版写在说明中，未单独标【强制】） |
 
 ## Key Concepts
 - **NoSuchMethodError**：二方包版本仲裁引入了非预期版本，或者 ASM 等字节码框架改了方法签名，编译期正常，运行期报错；它是 Error，catch Exception 捕获不到。
@@ -102,8 +106,9 @@ logger.error(各类参数或者对象 toString() + "_" + e.getMessage(), e);
 2. 服务端内部：DAO 层 `catch (Exception e) { throw new DAOException(e); }`，不打日志；Service 层 catch 后执行 `logger.error("pay failed, req={}", request, e)`，然后转成 Result 返回（ch09 分层异常处理）。
 3. 调用方：`Result r = payService.pay(req);` 外面用 `catch (Throwable t)` 包住，防止二方包版本冲突导致的 NoSuchMethodError（1.9）；拿到 r 先判空（1.11 远程调用场景）。
 4. 用户传入的金额格式错误 → 记 warn 级别日志，不记 error（2.9）。
-5. 支付日志单独存放：`pay_monitor_payResult.log`，保留至少 6 个月（属于用户敏感操作，2.2、2.3）。
-6. 如果涉及事务，catch 之后要手动回滚（1.5）。
+5. 支付日志单独存放：`pay_monitor_payResult.log`（2.3），至少保留 15 天（2.2）；打印 request 时用 toString，不用 JSON 工具（泰 3.9）。
+6. 对外返回的错误码按 ch12 的五位规则，如参数格式错误用 A0400 段，第三方支付超时用 C0200 段并带上原始错误码。
+7. 如果涉及事务，catch 之后要手动回滚（1.5）。
 
 ## Key Takeaways
 1. 能预检查的就不要 catch；异常不做流程控制；捕获了就必须处理，或者往上抛。
@@ -111,9 +116,12 @@ logger.error(各类参数或者对象 toString() + "_" + e.getMessage(), e);
 3. 调用 RPC 或二方包时 catch Throwable；对外接口用错误码，跨应用 RPC 用 Result。
 4. 防止 NPE 是调用者的责任；牢记六大 NPE 场景，用 Optional 防护。
 5. 日志：SLF4J 加 `{}` 占位符，debug/info 先判断级别，异常日志带现场信息和堆栈，`additivity=false`。
-6. 日志保留 15 天，敏感操作日志保留 6 个月；参数错误记 warn，不记 error。
+6. 日志至少保留 15 天；参数错误记 warn，不记 error。
+7. （泰山）生产环境不用 System.out 和 printStackTrace；不用 JSON 工具序列化对象打日志。
 
 ## Connects To
 - **ch02**：自动拆箱导致的 NPE；POJO 的 toString 用于打印现场信息。
 - **ch09**：分层异常处理规约（DAO / Service / Web / 开放接口各层的职责）。
+- **ch12**：泰山版错误码统一方案（A/B/C 来源 + 四位编号）。
+- **ch13 第 8 问**：门面模式与日志框架的选择。
 - **ch08**：`@Transactional` 不要滥用，回滚需要综合考虑缓存、消息等。

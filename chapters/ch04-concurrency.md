@@ -16,17 +16,19 @@
 - **DCL（双重检查锁）**：延迟初始化的目标属性要声明为 `volatile`（JDK5+）。
 
 ## 规约速查
+> 泰山版本节（七）并发处理仍为 19 条，与华山版条数一致；版本历史点名修订了第 9 条“阻塞等待锁”的描述（见下）。
+
 | # | 级别 | 规则 |
 |---|---|---|
 | 1 | 强制 | 获取单例对象要保证线程安全，单例里的方法也要线程安全 |
 | 2 | 强制 | 创建线程或线程池时指定有意义的名称（方便 jstack 排查） |
 | 3 | 强制 | 线程资源必须由线程池提供，不允许在应用中显式创建线程 |
-| 4 | 强制 | 不用 Executors，用 ThreadPoolExecutor |
-| 5 | 强制 | SimpleDateFormat 线程不安全，不要定义成 static；必须定义成 static 时要加锁，或用 ThreadLocal；JDK8 用 DateTimeFormatter |
+| 4 | 强制 | 不用 Executors，用 ThreadPoolExecutor。原理见 ch13 第 4 问 |
+| 5 | 强制 | SimpleDateFormat 线程不安全，不要定义成 static；必须定义成 static 时要加锁或用 DateUtils，亦推荐 ThreadLocal；JDK8 用 DateTimeFormatter。原理见 ch13 第 9 问 |
 | 6 | 强制 | 自定义的 ThreadLocal 必须在 try-finally 中 remove（线程池会复用线程） |
 | 7 | 强制 | 高并发时考虑锁的性能损耗（锁粒度三原则） |
 | 8 | 强制 | 对多个资源加锁时保持一致的顺序 |
-| 9 | 强制 | 阻塞加锁时 lock 写在 try 之外 |
+| 9 | 强制 | 阻塞加锁时 lock 写在 try 之外，且 lock 与 try 之间不能有可能抛异常的调用（泰山版修订描述，见下） |
 | 10 | 强制 | 尝试加锁时先判断是否持有锁 |
 | 11 | 强制 | 并发修改同一条记录要加锁：应用层锁、缓存锁，或数据库乐观锁（version） |
 | 12 | 强制 | 多个定时任务用 ScheduledExecutorService，不用 Timer（Timer 中一个任务抛异常，其他任务全部终止） |
@@ -37,6 +39,11 @@
 | 17 | 参考 | volatile 只能解决一写多读的场景；count++ 用 AtomicInteger，JDK8 用 LongAdder |
 | 18 | 参考 | HashMap 在高并发 resize 时可能出现死链，导致 CPU 飙升 |
 | 19 | 参考 | ThreadLocal 用 static 修饰；它无法解决共享对象的更新问题 |
+
+## 泰山版：阻塞等待锁（第 9 条）的三条说明
+1. lock 与 try 之间的调用抛异常 → 锁已加上却走不到 finally，**永远无法解锁**，其他线程拿不到锁。
+2. lock 写在 try 内 → 前面的代码抛异常时，finally 对未加锁的对象 unlock，经 AQS `tryRelease` 抛 IllegalMonitorStateException。
+3. `lock()` 方法本身也可能抛 unchecked 异常，后果同第 2 条。
 
 ## Key Concepts
 - **AQS / tryRelease**：unlock 对未持有的锁调用时会抛 IllegalMonitorStateException。
@@ -140,3 +147,5 @@ ThreadPoolExecutor exportPool = new ThreadPoolExecutor(
 - **ch03**：并发场景下 Iterator 要加锁，HashMap 有死链风险。
 - **ch05**：高并发下不要用“等于”判断作为终止条件。
 - **ch09**：服务器层面的 OOM 防护（HeapDumpOnOutOfMemoryError）。
+- **ch11**：日期时间规约（DateTimeFormatter、闰年）。
+- **ch13**：第 4 问（Executors 的 OOM 根因）、第 9 问（SimpleDateFormat 共享 Calendar 的线程安全问题）。
